@@ -1,0 +1,87 @@
+Sub GuardarAdjuntos()
+    On Error Resume Next ' Ignorar errores temporales para manejo de errores personalizado
+    
+    Dim olApp As Outlook.Application
+    Dim olNamespace As Outlook.NameSpace
+    Dim olFolder As Outlook.MAPIFolder
+    Dim olItem As Object
+    Dim olMail As Outlook.MailItem
+    Dim olAttachment As Outlook.Attachment
+    Dim strFolderPath As String
+    Dim mailFolderPath As String
+    Dim attachmentFileName As String
+    Dim extension As String
+    Dim categoria As String
+    
+    ' Establecer el objeto de aplicación
+    Set olApp = Outlook.Application
+    Set olNamespace = olApp.GetNamespace("MAPI")
+    
+    ' Intentar acceder a la carpeta "ARCHIVO" dentro de la "Bandeja de entrada"
+    Set olFolder = olNamespace.GetDefaultFolder(olFolderInbox).Folders("ARCHIVO")
+    If olFolder Is Nothing Then
+        MsgBox "No se encontró la carpeta 'ARCHIVO' dentro de la 'Bandeja de entrada'. Verifica el nombre de la carpeta y vuelve a intentarlo."
+        Exit Sub
+    End If
+    
+    ' Carpeta de destino base
+    strFolderPath = "C:\Users\ramirezmea\Desktop\ARCHIVO_ESCRITORIO\" ' Cambia esto a la ruta deseada
+    
+    ' Procesar cada correo en la carpeta
+    For Each olItem In olFolder.Items
+        If TypeOf olItem Is Outlook.MailItem Then
+            Set olMail = olItem
+            
+            ' Obtener la categoría del correo
+            categoria = LimpiarNombre(olMail.Categories)
+            If categoria = "" Then
+                categoria = "SinCategoria" ' Por defecto si no tiene categoría
+            End If
+            
+            ' Crear una carpeta para cada correo utilizando el asunto y la categoría
+            mailFolderPath = strFolderPath & LimpiarNombre(olMail.Subject) & "_" & categoria & "\"
+            If Dir(mailFolderPath, vbDirectory) = "" Then
+                MkDir mailFolderPath
+            End If
+            
+            ' Guardar cada adjunto en la carpeta del correo
+            For Each olAttachment In olMail.Attachments
+                attachmentFileName = olAttachment.FileName
+                extension = LCase(Right(attachmentFileName, Len(attachmentFileName) - InStrRev(attachmentFileName, ".")))
+                
+                ' Ignorar las imágenes comunes de firma
+                If extension <> "png" And extension <> "jpg" And extension <> "jpeg" And extension <> "gif" Then
+                    olAttachment.SaveAsFile mailFolderPath & olAttachment.DisplayName
+                End If
+            Next olAttachment
+            
+            ' Comentada la línea para guardar el correo como PDF
+            ' SaveMailAsPDF olMail, mailFolderPath & LimpiarNombre(olMail.Subject) & ".pdf"
+        End If
+    Next olItem
+    
+    MsgBox "Adjuntos guardados en " & strFolderPath
+    
+    ' Limpiar
+    Set olAttachment = Nothing
+    Set olMail = Nothing
+    Set olItem = Nothing
+    Set olFolder = Nothing
+    Set olNamespace = Nothing
+    Set olApp = Nothing
+End Sub
+
+Function LimpiarNombre(nombre As String) As String
+    ' Esta función reemplaza caracteres no válidos en el nombre de archivo
+    nombre = Replace(nombre, "/", "_")
+    nombre = Replace(nombre, "\", "_")
+    nombre = Replace(nombre, ":", "_")
+    nombre = Replace(nombre, "*", "_")
+    nombre = Replace(nombre, "?", "_")
+    nombre = Replace(nombre, """", "_")
+    nombre = Replace(nombre, "<", "_")
+    nombre = Replace(nombre, ">", "_")
+    nombre = Replace(nombre, "|", "_")
+    LimpiarNombre = nombre
+End Function
+
